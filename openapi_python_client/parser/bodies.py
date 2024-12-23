@@ -86,6 +86,9 @@ def body_from_data(
             body_type = BodyType.FILES
         elif simplified_content_type == "application/octet-stream":
             body_type = BodyType.CONTENT
+        # AB#169 testing behaviour of treating plain text as content
+        elif simplified_content_type == "text/plain":
+            body_type = BodyType.CONTENT
         elif simplified_content_type == "application/json" or simplified_content_type.endswith("+json"):
             body_type = BodyType.JSON
         else:
