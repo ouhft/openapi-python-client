@@ -293,7 +293,7 @@ def _get_project_for_url_or_path(
     config: Config,
     custom_template_path: Optional[Path] = None,
 ) -> Union[Project, GeneratorError]:
-    data_dict = _get_document(source=config.document_source, timeout=config.http_timeout)
+    data_dict = _get_document(source=config.document_source, timeout=config.http_timeout, insecure=config.insecure)
     if isinstance(data_dict, GeneratorError):
         return data_dict
     openapi = GeneratorData.from_dict(data_dict, config=config)
@@ -340,19 +340,20 @@ def _load_yaml_or_json(data: bytes, content_type: Optional[str]) -> Union[dict[s
             return GeneratorError(header=f"Invalid YAML from provided source: {err}")
 
 
-def _get_document(*, source: Union[str, Path], timeout: int) -> Union[dict[str, Any], GeneratorError]:
+def _get_document(*, source: Union[str, Path], timeout: int, insecure: bool = False) -> Union[dict[str, Any], GeneratorError]:
     yaml_bytes: bytes
     content_type: Optional[str]
     if isinstance(source, str):
         try:
-            response = httpx.get(source, timeout=timeout)
+            response = httpx.get(source, timeout=timeout, verify=not insecure)
             yaml_bytes = response.content
             if "content-type" in response.headers:
                 content_type = response.headers["content-type"].split(";")[0]
             else:  # pragma: no cover
                 content_type = mimetypes.guess_type(source, strict=True)[0]
 
-        except (httpx.HTTPError, httpcore.NetworkError):
+        except (httpx.HTTPError, httpcore.NetworkError) as err:
+            # print(f"httpx error: {err}. verify={not insecure} \n response={response}")  # TODO: Remove debugging
             return GeneratorError(header="Could not get OpenAPI document from provided URL")
     else:
         yaml_bytes = source.read_bytes()

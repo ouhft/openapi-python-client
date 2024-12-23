@@ -15,6 +15,7 @@ dist/
 # Environments
 .env
 .venv
+poetry.lock
 
 # mypy
 .mypy_cache/

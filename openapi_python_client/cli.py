@@ -30,6 +30,7 @@ def _process_config(
     file_encoding: str,
     overwrite: bool,
     output_path: Optional[Path],
+    insecure: bool = False,
 ) -> Config:
     source: Union[Path, str]
     if url and not path:
@@ -57,13 +58,13 @@ def _process_config(
         except Exception as err:
             raise typer.BadParameter("Unable to parse config") from err
 
-    return Config.from_sources(config_file, meta_type, source, file_encoding, overwrite, output_path=output_path)
+    return Config.from_sources(config_file, meta_type, source, file_encoding, overwrite, output_path=output_path, insecure=insecure)
 
 
 # noinspection PyUnusedLocal
 
 
-@app.callback(name="openapi-python-client")
+@app.callback()  # name="openapi-python-client"
 def cli(
     version: bool = typer.Option(False, "--version", callback=_version_callback, help="Print the version and exit"),
 ) -> None:
@@ -151,6 +152,7 @@ def generate(
         "Defaults to the OpenAPI document title converted to kebab or snake case (depending on meta type). "
         "Can also be overridden with `project_name_override` or `package_name_override` in config.",
     ),
+    insecure: bool = typer.Option(False, "--insecure", help="Disable SSL certificate verification"),
 ) -> None:
     """Generate a new OpenAPI Client library"""
     from . import generate
@@ -163,6 +165,7 @@ def generate(
         file_encoding=file_encoding,
         overwrite=overwrite,
         output_path=output_path,
+        insecure=insecure,
     )
     errors = generate(
         custom_template_path=custom_template_path,
