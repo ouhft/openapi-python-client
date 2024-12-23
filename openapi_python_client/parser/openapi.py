@@ -150,6 +150,11 @@ class Endpoint:
         endpoint = deepcopy(endpoint)
         for code, response_data in data.items():
             status_code: HTTPStatus
+            # AB#1712 - Nextgen use "default" for nearly all responses code definitions rather than specific http codes. So we have to make a guess what _range_ of status codes it could be.
+            # Initial testing suggests all outcomes on Mirth result in a 200 response, even if there's an error or warning...
+            if code == "default":
+                code = HTTPStatus.OK  # assuming 200 as the most likely status code, and to test just a single option here before we try a list of all possible status codes.
+
             try:
                 status_code = HTTPStatus(int(code))
             except ValueError:
