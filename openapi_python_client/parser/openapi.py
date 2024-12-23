@@ -493,8 +493,23 @@ class GeneratorData:
     enums: Iterator[Union[EnumProperty, LiteralEnumProperty]]
 
     @staticmethod
+    def _add_missing_descriptions(data: dict) -> None:
+        """Looks for missing descriptions in the responses in the OpenAPI data and inserts one related to the operation."""
+        for path, methods in data.get("paths", {}).items():
+            for operation, operation_data in methods.items():
+                if "responses" in operation_data:
+                    for response_code, response in operation_data["responses"].items():
+                        if "description" not in response:
+                            response["description"] = f"Response for {operation.upper()} {path} with status {response_code}"
+
+    @staticmethod
     def from_dict(data: dict[str, Any], *, config: Config) -> Union["GeneratorData", GeneratorError]:
         """Create an OpenAPI from dict"""
+        # AB#173 - Nextgen Mirth publishes an invalid OAS3 document missing required description elements that will cause validation to fail. If we have specfied on the CLI that is-nextgen-mirth flag, we will parse this data and insert appropriate descriptions to these elements.
+        if config.is_nextgen_mirth:
+            # print("FIXING Nextgen Mirth-specific OAS3 document")  # TODO: Remove debugging message
+            GeneratorData._add_missing_descriptions(data)
+
         try:
             openapi = oai.OpenAPI.model_validate(data)
         except ValidationError as err:

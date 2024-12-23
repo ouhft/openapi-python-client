@@ -31,6 +31,7 @@ def _process_config(
     overwrite: bool,
     output_path: Optional[Path],
     insecure: bool = False,
+    is_nextgen_mirth: bool = False,
 ) -> Config:
     source: Union[Path, str]
     if url and not path:
@@ -58,7 +59,16 @@ def _process_config(
         except Exception as err:
             raise typer.BadParameter("Unable to parse config") from err
 
-    return Config.from_sources(config_file, meta_type, source, file_encoding, overwrite, output_path=output_path, insecure=insecure)
+    return Config.from_sources(
+        config_file,
+        meta_type,
+        source,
+        file_encoding,
+        overwrite,
+        output_path=output_path,
+        insecure=insecure,
+        is_nextgen_mirth=is_nextgen_mirth,
+    )
 
 
 # noinspection PyUnusedLocal
@@ -66,7 +76,12 @@ def _process_config(
 
 @app.callback()  # name="openapi-python-client"
 def cli(
-    version: bool = typer.Option(False, "--version", callback=_version_callback, help="Print the version and exit"),
+    version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_version_callback,
+        help="Print the version and exit",
+    ),
 ) -> None:
     """Generate a Python client from an OpenAPI document"""
 
@@ -85,7 +100,9 @@ def _print_parser_error(err: GeneratorError, color: str) -> None:
     typer.echo()
 
 
-def handle_errors(errors: Sequence[GeneratorError], fail_on_warning: bool = False) -> None:
+def handle_errors(
+    errors: Sequence[GeneratorError], fail_on_warning: bool = False
+) -> None:
     """Turn custom errors into formatted error messages"""
     if len(errors) == 0:
         return
@@ -113,7 +130,8 @@ def handle_errors(errors: Sequence[GeneratorError], fail_on_warning: bool = Fals
         _print_parser_error(err, color)
 
     gh_link = typer.style(
-        "https://github.com/openapi-generators/openapi-python-client/issues/new/choose", fg=typer.colors.BRIGHT_BLUE
+        "https://github.com/openapi-generators/openapi-python-client/issues/new/choose",
+        fg=typer.colors.BRIGHT_BLUE,
     )
     typer.secho(
         f"If you believe this was a mistake or this tool is missing a feature you need, "
@@ -128,7 +146,9 @@ def handle_errors(errors: Sequence[GeneratorError], fail_on_warning: bool = Fals
 
 @app.command()
 def generate(
-    url: Optional[str] = typer.Option(None, help="A URL to read the OpenAPI document from"),
+    url: Optional[str] = typer.Option(
+        None, help="A URL to read the OpenAPI document from"
+    ),
     path: Optional[Path] = typer.Option(None, help="A path to the OpenAPI document"),
     custom_template_path: Optional[Path] = typer.Option(
         None,
@@ -142,17 +162,30 @@ def generate(
         MetaType.POETRY,
         help="The type of metadata you want to generate.",
     ),
-    file_encoding: str = typer.Option("utf-8", help="Encoding used when writing generated"),
-    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to the config file to use"),
+    file_encoding: str = typer.Option(
+        "utf-8", help="Encoding used when writing generated"
+    ),
+    config_path: Optional[Path] = typer.Option(
+        None, "--config", help="Path to the config file to use"
+    ),
     fail_on_warning: bool = False,
-    overwrite: bool = typer.Option(False, help="Overwrite the existing client if it exists"),
+    overwrite: bool = typer.Option(
+        False, help="Overwrite the existing client if it exists"
+    ),
     output_path: Optional[Path] = typer.Option(
         None,
         help="Path to write the generated code to. "
         "Defaults to the OpenAPI document title converted to kebab or snake case (depending on meta type). "
         "Can also be overridden with `project_name_override` or `package_name_override` in config.",
     ),
-    insecure: bool = typer.Option(False, "--insecure", help="Disable SSL certificate verification"),
+    insecure: bool = typer.Option(
+        False, "--insecure", help="Disable SSL certificate verification"
+    ),
+    is_nextgen_mirth: bool = typer.Option(
+        False,
+        "--is-nextgen-mirth",
+        help="Generate code for an invalid NextGen Mirth document",
+    ),
 ) -> None:
     """Generate a new OpenAPI Client library"""
     from . import generate
@@ -166,6 +199,7 @@ def generate(
         overwrite=overwrite,
         output_path=output_path,
         insecure=insecure,
+        is_nextgen_mirth=is_nextgen_mirth,
     )
     errors = generate(
         custom_template_path=custom_template_path,
