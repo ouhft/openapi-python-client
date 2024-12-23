@@ -2,6 +2,7 @@
 package-mode = true
 authors = [
     "Dylan Anthony <contact@dylananthony.com>",
+    "Carl Marshall <carl.marshall@ouh.nhs.uk>"
 ]
 license = "MIT"
 name = "openapi-python-client"
