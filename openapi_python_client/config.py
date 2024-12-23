@@ -78,6 +78,7 @@ class Config:
     overwrite: bool
     output_path: Optional[Path]
     insecure: bool = False
+    is_nextgen_mirth: bool = False
 
     @staticmethod
     def from_sources(
@@ -88,6 +89,7 @@ class Config:
         overwrite: bool,
         output_path: Optional[Path],
         insecure: bool = False,
+        is_nextgen_mirth: bool = False,
     ) -> "Config":
         if config_file.post_hooks is not None:
             post_hooks = config_file.post_hooks
@@ -118,6 +120,7 @@ class Config:
             file_encoding=file_encoding,
             overwrite=overwrite,
             output_path=output_path,
-            insecure=insecure
+            insecure=insecure,
+            is_nextgen_mirth=is_nextgen_mirth,
         )
         return config
