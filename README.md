@@ -12,6 +12,8 @@ Generate modern Python clients from OpenAPI 3.0 and 3.1 documents.
 _This generator does not support OpenAPI 2.x FKA Swagger. If you need to use an older document, try upgrading it to
 version 3 first with one of many available converters._
 
+> **NB:** This is the OUHFT main branch, set to track the `origin/main` branch, but act as the base for our locally published changes. Dev branches will feed into this, and the resultant output will be published into the DES Python Artifact Store. Work is tracked via <https://dev.azure.com/ouh-des/digital-engineering-service> and the TIE sub-area.
+
 **This project is still in development and does not support all OpenAPI features**
 
 ## Why This?
