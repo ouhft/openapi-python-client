@@ -63,8 +63,12 @@ class EndpointCollection:
                 operation: Optional[oai.Operation] = getattr(path_data, method)
                 if operation is None:
                     continue
-                tag = utils.PythonIdentifier(value=(operation.tags or ["default"])[0], prefix="tag")
-                collection = endpoints_by_tag.setdefault(tag, EndpointCollection(tag=tag))
+                tag = utils.PythonIdentifier(
+                    value=(operation.tags or ["default"])[0], prefix="tag"
+                )
+                collection = endpoints_by_tag.setdefault(
+                    tag, EndpointCollection(tag=tag)
+                )
                 endpoint, schemas, parameters = Endpoint.from_data(
                     data=operation,
                     path=path,
@@ -87,13 +91,13 @@ class EndpointCollection:
                 if not isinstance(endpoint, ParseError):
                     endpoint = Endpoint.sort_parameters(endpoint=endpoint)
                 if isinstance(endpoint, ParseError):
-                    endpoint.header = (
-                        f"WARNING parsing {method.upper()} {path} within {tag}. Endpoint will not be generated."
-                    )
+                    endpoint.header = f"WARNING parsing {method.upper()} {path} within {tag}. Endpoint will not be generated."
                     collection.parse_errors.append(endpoint)
                     continue
                 for error in endpoint.errors:
-                    error.header = f"WARNING parsing {method.upper()} {path} within {tag}."
+                    error.header = (
+                        f"WARNING parsing {method.upper()} {path} within {tag}."
+                    )
                     collection.parse_errors.append(error)
                 collection.endpoints.append(endpoint)
 
@@ -117,7 +121,12 @@ class RequestBodyParser(Protocol):
     __name__: str = "RequestBodyParser"
 
     def __call__(
-        self, *, body: oai.RequestBody, schemas: Schemas, parent_name: str, config: Config
+        self,
+        *,
+        body: oai.RequestBody,
+        schemas: Schemas,
+        parent_name: str,
+        config: Config,
     ) -> tuple[Union[Property, PropertyError, None], Schemas]: ...  # pragma: no cover
 
 
@@ -151,48 +160,55 @@ class Endpoint:
         for code, response_data in data.items():
             status_code: HTTPStatus
             # AB#1712 - Nextgen use "default" for nearly all responses code definitions rather than specific http codes. So we have to make a guess what _range_ of status codes it could be.
-            # Initial testing suggests all outcomes on Mirth result in a 200 response, even if there's an error or warning...
-            if code == "default":
-                code = HTTPStatus.OK  # assuming 200 as the most likely status code, and to test just a single option here before we try a list of all possible status codes.
+            possible_codes: list = (
+                [HTTPStatus.OK, HTTPStatus.BAD_REQUEST] if code == "default" else [code]
+            )
 
-            try:
-                status_code = HTTPStatus(int(code))
-            except ValueError:
-                endpoint.errors.append(
-                    ParseError(
-                        detail=(
-                            f"Invalid response status code {code} (not a valid HTTP "
-                            f"status code), response will be omitted from generated "
-                            f"client"
+            for current_code in possible_codes:
+                try:
+                    status_code = HTTPStatus(int(current_code))
+                except ValueError:
+                    endpoint.errors.append(
+                        ParseError(
+                            detail=(
+                                f"Invalid response status code {current_code} (not a valid HTTP "
+                                f"status code), response will be omitted from generated "
+                                f"client"
+                            )
                         )
                     )
-                )
-                continue
+                    continue
 
-            response, schemas = response_from_data(
-                status_code=status_code,
-                data=response_data,
-                schemas=schemas,
-                parent_name=endpoint.name,
-                config=config,
-            )
-            if isinstance(response, ParseError):
-                detail_suffix = "" if response.detail is None else f" ({response.detail})"
-                endpoint.errors.append(
-                    ParseError(
-                        detail=(
-                            f"Cannot parse response for status code {status_code}{detail_suffix}, "
-                            f"response will be omitted from generated client"
-                        ),
-                        data=response.data,
+                response, schemas = response_from_data(
+                    status_code=status_code,
+                    data=response_data,
+                    schemas=schemas,
+                    parent_name=endpoint.name,
+                    config=config,
+                )
+                if isinstance(response, ParseError):
+                    detail_suffix = (
+                        "" if response.detail is None else f" ({response.detail})"
                     )
-                )
-                continue
+                    endpoint.errors.append(
+                        ParseError(
+                            detail=(
+                                f"Cannot parse response for status code {status_code}{detail_suffix}, "
+                                f"response will be omitted from generated client"
+                            ),
+                            data=response.data,
+                        )
+                    )
+                    continue
 
-            # No reasons to use lazy imports in endpoints, so add lazy imports to relative here.
-            endpoint.relative_imports |= response.prop.get_lazy_imports(prefix=models_relative_prefix)
-            endpoint.relative_imports |= response.prop.get_imports(prefix=models_relative_prefix)
-            endpoint.responses.append(response)
+                # No reasons to use lazy imports in endpoints, so add lazy imports to relative here.
+                endpoint.relative_imports |= response.prop.get_lazy_imports(
+                    prefix=models_relative_prefix
+                )
+                endpoint.relative_imports |= response.prop.get_imports(
+                    prefix=models_relative_prefix
+                )
+                endpoint.responses.append(response)
         return endpoint, schemas
 
     @staticmethod
@@ -242,7 +258,9 @@ class Endpoint:
 
         for param in data.parameters:
             # Obtain the parameter from the reference or just the parameter itself
-            param_or_error = parameter_from_reference(param=param, parameters=parameters)
+            param_or_error = parameter_from_reference(
+                param=param, parameters=parameters
+            )
             if isinstance(param_or_error, ParseError):
                 return param_or_error, schemas, parameters
             param = param_or_error  # noqa: PLW2901
@@ -268,7 +286,9 @@ class Endpoint:
             unique_parameters.add(unique_param)
 
             if any(
-                other_param for other_param in parameters_by_location[param.param_in] if other_param.name == param.name
+                other_param
+                for other_param in parameters_by_location[param.param_in]
+                if other_param.name == param.name
             ):
                 # Defined at the operation level, ignore it here
                 continue
@@ -300,17 +320,27 @@ class Endpoint:
                 return location_error, schemas, parameters
 
             # No reasons to use lazy imports in endpoints, so add lazy imports to relative here.
-            endpoint.relative_imports.update(prop.get_lazy_imports(prefix=models_relative_prefix))
-            endpoint.relative_imports.update(prop.get_imports(prefix=models_relative_prefix))
+            endpoint.relative_imports.update(
+                prop.get_lazy_imports(prefix=models_relative_prefix)
+            )
+            endpoint.relative_imports.update(
+                prop.get_imports(prefix=models_relative_prefix)
+            )
             parameters_by_location[param.param_in].append(prop)
 
-        return endpoint._check_parameters_for_conflicts(config=config), schemas, parameters
+        return (
+            endpoint._check_parameters_for_conflicts(config=config),
+            schemas,
+            parameters,
+        )
 
     def _check_parameters_for_conflicts(
         self,
         *,
         config: Config,
-        previously_modified_params: Optional[set[tuple[oai.ParameterLocation, str]]] = None,
+        previously_modified_params: Optional[
+            set[tuple[oai.ParameterLocation, str]]
+        ] = None,
     ) -> Union["Endpoint", ParseError]:
         """Check for conflicting parameters
 
@@ -322,13 +352,17 @@ class Endpoint:
         unique python_name.
         """
         modified_params = previously_modified_params or set()
-        used_python_names: dict[PythonIdentifier, tuple[oai.ParameterLocation, Property]] = {}
+        used_python_names: dict[
+            PythonIdentifier, tuple[oai.ParameterLocation, Property]
+        ] = {}
         reserved_names = ["client", "url"]
         for parameter in self.iter_all_parameters():
             location, prop = parameter
 
             if prop.python_name in reserved_names:
-                prop.set_python_name(new_name=f"{prop.python_name}_{location}", config=config)
+                prop.set_python_name(
+                    new_name=f"{prop.python_name}_{location}", config=config
+                )
                 modified_params.add((location, prop.name))
                 continue
 
@@ -347,12 +381,19 @@ class Endpoint:
 
             if location != conflicting_location:
                 conflicting_prop.set_python_name(
-                    new_name=f"{conflicting_prop.python_name}_{conflicting_location}", config=config
+                    new_name=f"{conflicting_prop.python_name}_{conflicting_location}",
+                    config=config,
                 )
-                prop.set_python_name(new_name=f"{prop.python_name}_{location}", config=config)
+                prop.set_python_name(
+                    new_name=f"{prop.python_name}_{location}", config=config
+                )
             elif conflicting_prop.name != prop.name:  # Use the name to differentiate
-                conflicting_prop.set_python_name(new_name=conflicting_prop.name, config=config, skip_snake_case=True)
-                prop.set_python_name(new_name=prop.name, config=config, skip_snake_case=True)
+                conflicting_prop.set_python_name(
+                    new_name=conflicting_prop.name, config=config, skip_snake_case=True
+                )
+                prop.set_python_name(
+                    new_name=prop.name, config=config, skip_snake_case=True
+                )
 
             modified_params.add((location, conflicting_prop.name))
             modified_params.add((conflicting_location, conflicting_prop.name))
@@ -360,7 +401,9 @@ class Endpoint:
             used_python_names[conflicting_prop.python_name] = conflicting
 
         if len(modified_params) > 0 and modified_params != previously_modified_params:
-            return self._check_parameters_for_conflicts(config=config, previously_modified_params=modified_params)
+            return self._check_parameters_for_conflicts(
+                config=config, previously_modified_params=modified_params
+            )
         return self
 
     @staticmethod
@@ -389,7 +432,9 @@ class Endpoint:
                 detail=f"Incorrect path templating for {endpoint.path} (Path parameters do not match with path)",
             )
         for parameter in endpoint.path_parameters:
-            endpoint.path = endpoint.path.replace(f"{{{parameter.name}}}", f"{{{parameter.python_name}}}")
+            endpoint.path = endpoint.path.replace(
+                f"{{{parameter.name}}}", f"{{{parameter.python_name}}}"
+            )
         return endpoint
 
     @staticmethod
@@ -415,7 +460,11 @@ class Endpoint:
             path=path,
             method=method,
             summary=utils.remove_string_escapes(data.summary) if data.summary else "",
-            description=utils.remove_string_escapes(data.description) if data.description else "",
+            description=(
+                utils.remove_string_escapes(data.description)
+                if data.description
+                else ""
+            ),
             name=name,
             requires_security=bool(data.security),
             tag=tag,
@@ -430,11 +479,17 @@ class Endpoint:
         )
         if isinstance(result, ParseError):
             return result, schemas, parameters
-        result, schemas = Endpoint._add_responses(endpoint=result, data=data.responses, schemas=schemas, config=config)
+        result, schemas = Endpoint._add_responses(
+            endpoint=result, data=data.responses, schemas=schemas, config=config
+        )
         if isinstance(result, ParseError):
             return result, schemas, parameters
         bodies, schemas = body_from_data(
-            data=data, schemas=schemas, config=config, endpoint_name=result.name, request_bodies=request_bodies
+            data=data,
+            schemas=schemas,
+            config=config,
+            endpoint_name=result.name,
+            request_bodies=request_bodies,
         )
         body_errors = []
         for body in bodies:
@@ -442,8 +497,12 @@ class Endpoint:
                 body_errors.append(body)
                 continue
             result.bodies.append(body)
-            result.relative_imports.update(body.prop.get_imports(prefix=models_relative_prefix))
-            result.relative_imports.update(body.prop.get_lazy_imports(prefix=models_relative_prefix))
+            result.relative_imports.update(
+                body.prop.get_imports(prefix=models_relative_prefix)
+            )
+            result.relative_imports.update(
+                body.prop.get_lazy_imports(prefix=models_relative_prefix)
+            )
         if len(result.bodies) > 0:
             result.errors.extend(body_errors)
         elif len(body_errors) > 0:
@@ -460,7 +519,9 @@ class Endpoint:
 
     def response_type(self) -> str:
         """Get the Python type of any response from this endpoint"""
-        types = sorted({response.prop.get_type_string(quoted=False) for response in self.responses})
+        types = sorted(
+            {response.prop.get_type_string(quoted=False) for response in self.responses}
+        )
         if len(types) == 0:
             return "Any"
         if len(types) == 1:
@@ -469,10 +530,18 @@ class Endpoint:
 
     def iter_all_parameters(self) -> Iterator[tuple[oai.ParameterLocation, Property]]:
         """Iterate through all the parameters of this endpoint"""
-        yield from ((oai.ParameterLocation.PATH, param) for param in self.path_parameters)
-        yield from ((oai.ParameterLocation.QUERY, param) for param in self.query_parameters)
-        yield from ((oai.ParameterLocation.HEADER, param) for param in self.header_parameters)
-        yield from ((oai.ParameterLocation.COOKIE, param) for param in self.cookie_parameters)
+        yield from (
+            (oai.ParameterLocation.PATH, param) for param in self.path_parameters
+        )
+        yield from (
+            (oai.ParameterLocation.QUERY, param) for param in self.query_parameters
+        )
+        yield from (
+            (oai.ParameterLocation.HEADER, param) for param in self.header_parameters
+        )
+        yield from (
+            (oai.ParameterLocation.COOKIE, param) for param in self.cookie_parameters
+        )
 
     def list_all_parameters(self) -> list[Property]:
         """Return a list of all the parameters of this endpoint"""
@@ -505,10 +574,14 @@ class GeneratorData:
                 if "responses" in operation_data:
                     for response_code, response in operation_data["responses"].items():
                         if "description" not in response:
-                            response["description"] = f"Response for {operation.upper()} {path} with status {response_code}"
+                            response["description"] = (
+                                f"Response for {operation.upper()} {path} with status {response_code}"
+                            )
 
     @staticmethod
-    def from_dict(data: dict[str, Any], *, config: Config) -> Union["GeneratorData", GeneratorError]:
+    def from_dict(
+        data: dict[str, Any], *, config: Config
+    ) -> Union["GeneratorData", GeneratorError]:
         """Create an OpenAPI from dict"""
         # AB#173 - Nextgen Mirth publishes an invalid OAS3 document missing required description elements that will cause validation to fail. If we have specfied on the CLI that is-nextgen-mirth flag, we will parse this data and insert appropriate descriptions to these elements.
         if config.is_nextgen_mirth:
@@ -521,13 +594,18 @@ class GeneratorData:
             detail = str(err)
             if "swagger" in data:
                 detail = (
-                    "You may be trying to use a Swagger document; this is not supported by this project.\n\n" + detail
+                    "You may be trying to use a Swagger document; this is not supported by this project.\n\n"
+                    + detail
                 )
-            return GeneratorError(header="Failed to parse OpenAPI document", detail=detail)
+            return GeneratorError(
+                header="Failed to parse OpenAPI document", detail=detail
+            )
         schemas = Schemas()
         parameters = Parameters()
         if openapi.components and openapi.components.schemas:
-            schemas = build_schemas(components=openapi.components.schemas, schemas=schemas, config=config)
+            schemas = build_schemas(
+                components=openapi.components.schemas, schemas=schemas, config=config
+            )
         if openapi.components and openapi.components.parameters:
             parameters = build_parameters(
                 components=openapi.components.parameters,
@@ -536,13 +614,23 @@ class GeneratorData:
             )
         request_bodies = (openapi.components and openapi.components.requestBodies) or {}
         endpoint_collections_by_tag, schemas, parameters = EndpointCollection.from_data(
-            data=openapi.paths, schemas=schemas, parameters=parameters, request_bodies=request_bodies, config=config
+            data=openapi.paths,
+            schemas=schemas,
+            parameters=parameters,
+            request_bodies=request_bodies,
+            config=config,
         )
 
         enums = (
-            prop for prop in schemas.classes_by_name.values() if isinstance(prop, (EnumProperty, LiteralEnumProperty))
+            prop
+            for prop in schemas.classes_by_name.values()
+            if isinstance(prop, (EnumProperty, LiteralEnumProperty))
         )
-        models = (prop for prop in schemas.classes_by_name.values() if isinstance(prop, ModelProperty))
+        models = (
+            prop
+            for prop in schemas.classes_by_name.values()
+            if isinstance(prop, ModelProperty)
+        )
 
         return GeneratorData(
             title=openapi.info.title,
